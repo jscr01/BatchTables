@@ -16,6 +16,7 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
     dtbBatchGrid.editForm = {};
     dtbBatchGrid.editControl;
     dtbBatchGrid.cacheObjects = {};
+    dtbBatchGrid.lstNumberRows = [];
 
     if ($(tableRef + " tr[data-editform='true']") !== undefined) {
         $(tableRef + " tr[data-editform='true'] td").each(function (i, ele) {
@@ -28,7 +29,9 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
                     dtbBatchGrid.editForm[i].cache = $(ele).attr("data-cache");
                 }
             }
-            
+            if ($(ele).children("input[type='number']").length != 0) {
+                dtbBatchGrid.lstNumberRows.push(i);
+            }
         });
     }
 
@@ -86,6 +89,14 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
 	}
 
 	dtbBatchGrid.batchSettings.debug = typeof dtbBatchGrid.batchSettings.debug == "undefined" ? false : dtbBatchGrid.batchSettings.debug
+
+	dtbBatchGrid.reset = function () {
+	    dtbBatchGrid.grid.ajax.reload();
+	    dtbBatchGrid.data.inserted = {};
+	    dtbBatchGrid.data.selected = [];
+	    dtbBatchGrid.data.deleted = [];
+	    dtbBatchGrid.data.edit = {};
+	}
 
     //Add Columns
 	dtbBatchGrid.batchSettings.showSelectionBox = typeof dtbBatchGrid.batchSettings.showSelectionBox == "undefined" ? true : dtbBatchGrid.batchSettings.showSelectionBox
@@ -145,6 +156,20 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
                     
                     $(ele).after("<td data-actioncell=\"action\">" + markup + "</td>");
                 }
+            });
+
+            $(tableRef + " tr").each(function (i, ele) {
+                $(ele).children().each(function (x, tdEle) {
+                    for (var cellIndex = 0; cellIndex < dtbBatchGrid.lstNumberRows.length; cellIndex++) {
+                        var realCellIndex = dtbBatchGrid.lstNumberRows[cellIndex];
+                        if(dtbBatchGrid.batchSettings.showSelectionBox){
+                            realCellIndex = dtbBatchGrid.lstNumberRows[cellIndex] + 1;
+                        }
+                        if (realCellIndex == x) {
+                            $(tdEle).text(DataTableBatchApi.formatNumber($(tdEle).text()));
+                        }
+                    }
+                });
             });
         }
 
@@ -249,52 +274,80 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
 	});
 
 	$("html").on("focus", tableRef + " tbody tr td", function (event) {
-	    if (!$(this).attr("data-commandcell") && !$(this).attr("data-editmode") && !$(this).attr("data-actioncell") && !$(this).parent().attr("data-deleted")) {
-	        var oldValue = $(this).text();
-	        $(this).attr("data-editmode", "true");
-	        $(this).attr("data-oldvalue", oldValue);
+	    var isDisabled = (typeof dtbBatchGrid.batchSettings.activateEditModeCondition !== "undefined") ? dtbBatchGrid.batchSettings.activateEditModeCondition(event, $(this).attr("data-editmode")) : false;
+	    if (!isDisabled) {
+	        if (!$(this).attr("data-commandcell") && !$(this).attr("data-editmode") && !$(this).attr("data-actioncell") && !$(this).parent().attr("data-deleted")) {
+	            var oldValue = $(this).text();
+	            var editControl = dtbBatchGrid.editForm[DataTableBatchApi.findCellPosition($(this), dtbBatchGrid.batchSettings.showSelectionBox)].element;
+	            var controlType = $(editControl).attr("type");
+	            if ($(editControl).attr("data-ishtml") == "true") {
+	                oldValue = $(this).html();
+	            }
+	            $(this).attr("data-editmode", "true");
+	            if (controlType == "number") {
+	                oldValue = DataTableBatchApi.deformatNumber(oldValue);
+	            }
+	            $(this).attr("data-oldvalue", oldValue);
 
-	        $(this).html(dtbBatchGrid.editForm[DataTableBatchApi.findCellPosition($(this), dtbBatchGrid.batchSettings.showSelectionBox)].element);
 
+	            $(this).html(editControl);
 
-	        if ($(this).children("input").length > 0) {
-	            dtbBatchGrid.editControl = "input";
-	            $($(this).children("input")).val(oldValue);
-
-	        } else if ($(this).children("select").length > 0) {
-	            dtbBatchGrid.editControl = "select";
-	            var selectList = $($(this).children("select"));
-	            var colPos = DataTableBatchApi.findCellPosition($(this), dtbBatchGrid.batchSettings.showSelectionBox);
-	            if (dtbBatchGrid.editForm[colPos].call !== undefined) {
-	                if (dtbBatchGrid.editForm[colPos].cache && typeof dtbBatchGrid.cacheObjects["column" + colPos + "Data"] !== "undefined") {
-	                    DataTableBatchApi.populateSelectList(selectList, dtbBatchGrid.cacheObjects["column" + colPos + "Data"]);
-	                    selectList.val(oldValue);
-	                } else {
-	                    var ajaxObject = { url: dtbBatchGrid.editForm[colPos].call };
-	                    if (typeof dtbBatchGrid.batchSettings.onCallForList !== "undefined") dtbBatchGrid.batchSettings.onCallForList(colPos, ajaxObject);
-	                    $.ajax(ajaxObject).success(function (data) {
-                            var lstItems = JSON.parse(data);
-                            if (typeof dtbBatchGrid.batchSettings.onCellListGet !== "undefined") dtbBatchGrid.batchSettings.onCellListGet(colPos, lstItems);
-	                        DataTableBatchApi.populateSelectList(selectList, lstItems);
-	                        selectList.val(oldValue);
-	                        if (dtbBatchGrid.editForm[colPos].cache) {
-	                            dtbBatchGrid.cacheObjects["column" + colPos + "Data"] = lstItems;
+	            if ($(this).children("input").length > 0) {
+	                dtbBatchGrid.editControl = "input";
+	                switch(($(this).children("input").attr("type"))){
+	                    case "checkbox":
+	                        var trueVal = $(this).children("input").attr("data-trueval");
+                            if (oldValue == trueVal) {
+	                            $(this).children("input").attr("checked", "checked");
 	                        }
-	                    });
+	                        break;
+	                    case "number":
+	                        $($(this).children("input")).val(DataTableBatchApi.deformatNumber(oldValue));
+	                        break;
+	                    default:
+                            $($(this).children("input")).val(oldValue);
+	                        break;
+	                }
+	            } else if ($(this).children("select").length > 0) {
+	                dtbBatchGrid.editControl = "select";
+	                var selectList = $($(this).children("select"));
+	                var colPos = DataTableBatchApi.findCellPosition($(this), dtbBatchGrid.batchSettings.showSelectionBox);
+	                if (dtbBatchGrid.editForm[colPos].call !== undefined) {
+	                    if (dtbBatchGrid.editForm[colPos].cache && typeof dtbBatchGrid.cacheObjects["column" + colPos + "Data"] !== "undefined") {
+	                        DataTableBatchApi.populateSelectList(selectList, dtbBatchGrid.cacheObjects["column" + colPos + "Data"]);
+	                        selectList.val(oldValue);
+	                    } else {
+	                        var ajaxObject = { url: dtbBatchGrid.editForm[colPos].call };
+	                        if (typeof dtbBatchGrid.batchSettings.onCallForList !== "undefined") dtbBatchGrid.batchSettings.onCallForList(colPos, ajaxObject);
+	                        $.ajax(ajaxObject).success(function (data) {
+                                var lstItems = JSON.parse(data);
+                                if (typeof dtbBatchGrid.batchSettings.onCellListGet !== "undefined") dtbBatchGrid.batchSettings.onCellListGet(colPos, lstItems);
+	                            DataTableBatchApi.populateSelectList(selectList, lstItems);
+	                            selectList.val(oldValue);
+	                            if (dtbBatchGrid.editForm[colPos].cache) {
+	                                dtbBatchGrid.cacheObjects["column" + colPos + "Data"] = lstItems;
+	                            }
+	                        });
+	                    }
+	                } else {
+	                    selectList.val(oldValue);
 	                }
 	            }
-	        }
 
-	        $(this).children(dtbBatchGrid.editControl).focus();
+	            $(this).children(dtbBatchGrid.editControl).focus();
 	        
-	        debugOutput();
+	            debugOutput();
+	        }
 	    }
-	    if (typeof dtbBatchGrid.batchSettings.onCellEnter !== "undefined") dtbBatchGrid.batchSettings.onCellEnter(event);
+	    if (typeof dtbBatchGrid.batchSettings.onCellEnter !== "undefined") dtbBatchGrid.batchSettings.onCellEnter(event, isDisabled);
 	});
 
 	$("html").on("focusout", tableRef + " tbody tr td input,  tbody tr td select", function (event) {
 	    var oldValue = $(this).parent().attr("data-oldvalue");
-	    var currentValue = $(tableRef + " tbody tr td[data-editmode]").children(dtbBatchGrid.editControl).val();
+	    var control = $(tableRef + " tbody tr td[data-editmode]").children(dtbBatchGrid.editControl);
+	    var controlType = control.attr("type");
+	    var cell = $(tableRef + " tbody tr td[data-editmode]");
+	    var currentValue = (controlType == "checkbox") ? DataTableBatchApi.getCheckBoxValue(control) : control.val();
 	    var hasChanged = (currentValue !== oldValue);
 	    var isNew = $(this).parent().parent().hasClass("dtbNew");
 	    var id = $(this).parent().parent().attr("id");
@@ -319,11 +372,13 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
 	            }
 	        }
 	    }
-
+	    if (controlType == "number") {
+	        currentValue = DataTableBatchApi.formatNumber(currentValue);
+	    }
 	    $(tableRef + " tbody tr td[data-editmode]").html(currentValue);
         $(tableRef + " tbody tr td[data-editmode]").removeAttr("data-editmode");
 
-        if (typeof dtbBatchGrid.batchSettings.onCellLeave !== "undefined") dtbBatchGrid.batchSettings.onCellLeave(event, oldValue, currentValue, hasChanged, isNew, id, index);
+        if (typeof dtbBatchGrid.batchSettings.onCellLeave !== "undefined") dtbBatchGrid.batchSettings.onCellLeave(event, oldValue, currentValue, hasChanged, isNew, id, index, cell);
         debugOutput();
 	});
 
@@ -378,5 +433,36 @@ DataTableBatchApi.populateSelectList = function (select, lstItems) {
     for (var i = 0; i < lstItems.length; i++) {
         var val = (typeof lstItems[i].value === "undefined") ? lstItems[i].text : lstItems[i].value;
         select.append("<option value=\"" + val + "\">" + lstItems[i].text + "</option>");
+    }
+}
+DataTableBatchApi.getCheckBoxValue = function (checkbox) {
+    if (checkbox.is(":checked")) {
+        return checkbox.attr("data-trueval");
+    } else {
+        return checkbox.attr("data-falseval");
+    }
+}
+DataTableBatchApi.formatNumber = function (number) {
+    if (typeof DataTableBatchApi.formatNumberOverride != "undefined") {
+        return DataTableBatchApi.formatNumberOverride(number);
+    } else {
+        number += '';
+        x = number.split('.');
+        x1 = x[0];
+        x2 = x.length > 1 ? '.' + x[1] : '';
+        var rgx = /(\d+)(\d{3})/;
+        while (rgx.test(x1)) {
+            x1 = x1.replace(rgx, '$1' + ',' + '$2');
+        }
+        return x1 + x2;
+    }
+    
+}
+DataTableBatchApi.deformatNumber = function (number) {
+    if (typeof DataTableBatchApi.deformatNumberOverride != "undefined") {
+        return DataTableBatchApi.deformatNumberOverride(number);
+    } else {
+        var solidNumber = number.toString().replace(new RegExp("[,]","g"), "");
+        return parseFloat(solidNumber);
     }
 }
