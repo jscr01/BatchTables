@@ -21,6 +21,7 @@ Useful Links
 * [Setup](http://batchtables.jscr01.co.uk/pages/setup.html)
 * [List of Methods](http://batchtables.jscr01.co.uk/pages/methods.html)
 * [Edit form setup](http://batchtables.jscr01.co.uk/pages/editing.html)
+* [Footer setup](http://batchtables.jscr01.co.uk/pages/footer.html)
 * [List of Hooks](http://batchtables.jscr01.co.uk/pages/events.html)
 * [List of settings](http://batchtables.jscr01.co.uk/pages/styles.html)
 
