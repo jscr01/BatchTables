@@ -17,6 +17,7 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
     dtbBatchGrid.editControl;
     dtbBatchGrid.cacheObjects = {};
     dtbBatchGrid.lstNumberRows = [];
+    dtbBatchGrid.footerControls = {};
 
     if ($(tableRef + " tr[data-editform='true']") !== undefined) {
         $(tableRef + " tr[data-editform='true'] td").each(function (i, ele) {
@@ -35,12 +36,25 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
         });
     }
 
+    if ($(tableRef + " tfoot[data-summary='true']") !== undefined) {
+        $(tableRef + " tfoot[data-summary='true'] tr th").each(function (i, ele) {
+            if ($(ele).text().split("")[0] == "=") {
+                dtbBatchGrid.footerControls[i] = {};
+                dtbBatchGrid.footerControls[i].calculation = $(ele).text().split("(")[0].replace("=", "").toLowerCase();
+                dtbBatchGrid.footerControls[i].columnToCalc = $(ele).text().split("(")[1].replace(")", "").toLowerCase()
+                dtbBatchGrid.footerControls[i].format = ($(ele).attr("data-format") == undefined) ? false : JSON.parse($(ele).attr("data-format"));
+                dtbBatchGrid.footerControls[i].column = i;
+            }
+        });
+    }
+
 	dtbBatchGrid.grid = $(tableRef).DataTable(dataTablesSettings);
 	dtbBatchGrid.batchSettings = batchSettings;
 	dtbBatchGrid.domElements = {};
 
     dtbBatchGrid.batchSettings.selectColumnName = typeof dtbBatchGrid.batchSettings.selectColumnName == "undefined" ? "#" : dtbBatchGrid.batchSettings.selectColumnName;
     
+    dtbBatchGrid.batchSettings.customFooter = typeof dtbBatchGrid.batchSettings.customFooter == "undefined" ? false : dtbBatchGrid.batchSettings.customFooter;
     
     dtbBatchGrid.batchSettings.deleteButtonText = typeof dtbBatchGrid.batchSettings.deleteButtonText == "undefined" ? "Delete" : dtbBatchGrid.batchSettings.deleteButtonText;
     dtbBatchGrid.batchSettings.deleteNewButtonText = typeof dtbBatchGrid.batchSettings.deleteNewButtonText == "undefined" ? dtbBatchGrid.batchSettings.deleteButtonText : dtbBatchGrid.batchSettings.deleteNewButtonText;
@@ -90,6 +104,23 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
 
 	dtbBatchGrid.batchSettings.debug = typeof dtbBatchGrid.batchSettings.debug == "undefined" ? false : dtbBatchGrid.batchSettings.debug
 
+	dtbBatchGrid.footerSetup = function () {
+	    $(tableRef + " tfoot[data-summary='true'] tr th").each(function (i, ele) {
+	        var cellPos = (dtbBatchGrid.batchSettings.showSelectionBox) ? (i - 1) : i;
+	        if (typeof dtbBatchGrid.footerControls[cellPos] !== "undefined") {
+	            var footerObj = dtbBatchGrid.footerControls[cellPos];
+	            var result; 
+	            if (footerObj.calculation === "records") {
+	                result = dtbBatchGrid.grid.data().length;
+	            } else {
+	                result = DataTableBatchApi.calculations[footerObj.calculation](dtbBatchGrid.grid.data(), dtbBatchGrid.data.deleted, footerObj.columnToCalc, footerObj.format)
+	            }
+
+	            $(ele).html(result);
+	        }
+	    });
+	}
+
 	dtbBatchGrid.reset = function () {
 	    dtbBatchGrid.grid.ajax.reload();
 	    dtbBatchGrid.data.inserted = {};
@@ -102,10 +133,20 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
 	dtbBatchGrid.batchSettings.showSelectionBox = typeof dtbBatchGrid.batchSettings.showSelectionBox == "undefined" ? true : dtbBatchGrid.batchSettings.showSelectionBox
 	if (dtbBatchGrid.batchSettings.showSelectionBox) {
 	    $(dtbBatchGrid.grid.settings()[0].nTable).children("thead").children("tr").children("th:first").before("<th>" + dtbBatchGrid.batchSettings.selectColumnName + "</th>");
+	    if (!dtbBatchGrid.batchSettings.customFooter) {
+	        $(dtbBatchGrid.grid.settings()[0].nTable).children("tfoot").children("tr").children("th:first").before("<th>" + dtbBatchGrid.batchSettings.selectColumnName + "</th>");
+	    } else {
+	        $(dtbBatchGrid.grid.settings()[0].nTable).children("tfoot").children("tr").children("th:first").before("<th></th>");
+	    }
 	}
 	dtbBatchGrid.batchSettings.showActionColumn = typeof dtbBatchGrid.batchSettings.showActionColumn == "undefined" ? true : dtbBatchGrid.batchSettings.showDeleteColumn
 	if (dtbBatchGrid.batchSettings.showActionColumn) {
 	    $(dtbBatchGrid.grid.settings()[0].nTable).children("thead").children("tr").children("th:last").after("<th>" + dtbBatchGrid.batchSettings.actionColumnName + "</th>");
+	    if (!dtbBatchGrid.batchSettings.customFooter) {
+	        $(dtbBatchGrid.grid.settings()[0].nTable).children("tfoot").children("tr").children("th:last").after("<th>" + dtbBatchGrid.batchSettings.actionColumnName + "</th>");
+	    } else {
+	        $(dtbBatchGrid.grid.settings()[0].nTable).children("tfoot").children("tr").children("th:last").after("<th></th>");
+	    }
 	    dtbBatchGrid.batchSettings.showActionsColumn = true;
 	} else {
 	    dtbBatchGrid.batchSettings.showActionsColumn = false;
@@ -172,7 +213,7 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
                 });
             });
         }
-
+        dtbBatchGrid.footerSetup();
         if (typeof dtbBatchGrid.batchSettings.onGridRendered !== "undefined") dtbBatchGrid.batchSettings.onGridRendered(event, settings);
         debugOutput();
 	});
@@ -193,7 +234,7 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
 	        $("[data-actioncell]").remove();
 	    }
 	    dtbBatchGrid.newCount++;
-
+	    dtbBatchGrid.grid.page(0).draw('page');
 	    dtbBatchGrid.data.processNewRecord(blankRecord);
 	}
 	dtbBatchGrid.data.addRecord = function (record) {
@@ -269,6 +310,7 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
                 var index = DataTableBatchApi.getIndex(dtbBatchGrid.data.deleted, $(row).attr("id"));
                 dtbBatchGrid.data.deleted.splice(index, 1);
         }
+        dtbBatchGrid.footerSetup();
         if (typeof dtbBatchGrid.batchSettings.onDeleteButtonClick !== "undefined") dtbBatchGrid.batchSettings.onDeleteButtonClick(event);
         debugOutput();
 	});
@@ -288,7 +330,6 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
 	                oldValue = DataTableBatchApi.deformatNumber(oldValue);
 	            }
 	            $(this).attr("data-oldvalue", oldValue);
-
 
 	            $(this).html(editControl);
 
@@ -359,17 +400,9 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
                 if (typeof dtbBatchGrid.data.edit[id] == "undefined") {
                     var colStart = dtbBatchGrid.batchSettings.showSelectionBox ? 1 : 0;
                     var noCols = dtbBatchGrid.batchSettings.showSelectionBox ? dtbBatchGrid.grid.columns()[0].length + 1 : dtbBatchGrid.grid.columns()[0].length;
-                    dtbBatchGrid.data.edit[id] = {};
-                    dtbBatchGrid.data.edit[id]["DT_RowId"] = id;
-                    for (var i = colStart; i < noCols; i++) {
-                        var colNum = dtbBatchGrid.batchSettings.showSelectionBox ? i - 1 : i;
-                        var record = (index === colNum) ? currentValue : $("#" + id + " td:eq(" + i + ")").text();
-
-                        dtbBatchGrid.data.edit[id][colNum] = record;
-                    }
-	            } else {
-                    dtbBatchGrid.data.edit[id][index] = currentValue;
+                    dtbBatchGrid.data.edit[id] = $.grep(dtbBatchGrid.grid.data(), function (x) { return x.DT_RowId == id })[0];
 	            }
+                dtbBatchGrid.data.edit[id][index] = currentValue;
 	        }
 	    }
 	    if (controlType == "number") {
@@ -379,6 +412,7 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
         $(tableRef + " tbody tr td[data-editmode]").removeAttr("data-editmode");
 
         if (typeof dtbBatchGrid.batchSettings.onCellLeave !== "undefined") dtbBatchGrid.batchSettings.onCellLeave(event, oldValue, currentValue, hasChanged, isNew, id, index, cell);
+        dtbBatchGrid.footerSetup();
         debugOutput();
 	});
 
@@ -394,75 +428,4 @@ DataTableBatchApi.init = function (tableRef, dataTablesSettings, batchSettings) 
 
 	debugOutput();
 	return dtbBatchGrid;
-}
-
-DataTableBatchApi.checkSetting = function (setting, alternative, original) {
-	if (typeof setting === "undefined") {
-	    if (typeof original !== "undefined") {
-	        original();
-		}
-	} else {
-		alternative();
-	}
-}
-DataTableBatchApi.getIndex = function (array, compare) {
-    var index = null;
-    for (var i = 0; i < array.length; i++) {
-        if (array[i] === compare) {
-            index = i;
-            break;
-        }
-    }
-    return index;
-}
-DataTableBatchApi.generateDeleteButton = function (container, tableRef, text, css, undelete) {
-    css = (typeof css == "undefined") ? "" : "class=\"" + css + "\"";
-    undelete = (typeof undelete == "undefined") ? false : undelete;
-    var action = (undelete) ? "undelete" : "delete";
-    return "<button type=\"button\" " + css + " data-action=\"" + action + "\" data-btn=\"delete\" id=\"btnDelete" + tableRef + "_button_" + $(container).parent().attr("id") + "\">" + text + "</button>";
-
-}
-DataTableBatchApi.findCellPosition = function (cell, hasSelectionCell) {
-    var postion = $(cell).index();
-    if (hasSelectionCell) {
-        postion--;
-    }
-    return postion;
-}
-DataTableBatchApi.populateSelectList = function (select, lstItems) {
-    for (var i = 0; i < lstItems.length; i++) {
-        var val = (typeof lstItems[i].value === "undefined") ? lstItems[i].text : lstItems[i].value;
-        select.append("<option value=\"" + val + "\">" + lstItems[i].text + "</option>");
-    }
-}
-DataTableBatchApi.getCheckBoxValue = function (checkbox) {
-    if (checkbox.is(":checked")) {
-        return checkbox.attr("data-trueval");
-    } else {
-        return checkbox.attr("data-falseval");
-    }
-}
-DataTableBatchApi.formatNumber = function (number) {
-    if (typeof DataTableBatchApi.formatNumberOverride != "undefined") {
-        return DataTableBatchApi.formatNumberOverride(number);
-    } else {
-        number += '';
-        x = number.split('.');
-        x1 = x[0];
-        x2 = x.length > 1 ? '.' + x[1] : '';
-        var rgx = /(\d+)(\d{3})/;
-        while (rgx.test(x1)) {
-            x1 = x1.replace(rgx, '$1' + ',' + '$2');
-        }
-        return x1 + x2;
-    }
-    
-}
-DataTableBatchApi.deformatNumber = function (number) {
-    if (typeof DataTableBatchApi.deformatNumberOverride != "undefined") {
-        return DataTableBatchApi.deformatNumberOverride(number);
-    } else {
-        var solidNumber = number.toString().replace(new RegExp("[,]","g"), "");
-        return parseFloat(solidNumber);
-    }
 }
