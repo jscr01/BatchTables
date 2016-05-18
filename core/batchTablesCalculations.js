@@ -1,7 +1,7 @@
 ﻿DataTableBatchApi.calculations = {};
 DataTableBatchApi.calculations.sum = function (data, deletedItems, column, format) {
     var rtnSum = 0;
-    for (i = 0; i < data.length; i++) {
+    for (var i = 0; i < data.length; i++) {
         if ($.inArray(data[i]["DT_RowId"], deletedItems) === -1) {
             if (isNaN(parseFloat(data[i][column]))) {
                 rtnSum += 0;
@@ -21,7 +21,7 @@ DataTableBatchApi.calculations.sum = function (data, deletedItems, column, forma
 DataTableBatchApi.calculations.average = function (data, deletedItems, column, format) {
     var sumOfNumbers = 0;
     var average;
-    for (i = 0; i < data.length; i++) {
+    for (var i = 0; i < data.length; i++) {
         if ($.inArray(data[i]["DT_RowId"], deletedItems) === -1) {
             if (isNaN(parseFloat(data[i][column]))) {
                 sumOfNumbers += 0;
@@ -45,7 +45,7 @@ DataTableBatchApi.calculations.average = function (data, deletedItems, column, f
 DataTableBatchApi.calculations.max = function (data, deletedItems, column, format) {
     var arrNumbers = [];
     var maxNumber;
-    for (i = 0; i < data.length; i++) {
+    for (var i = 0; i < data.length; i++) {
         if ($.inArray(data[i]["DT_RowId"], deletedItems) === -1) {
             if (isNaN(parseFloat(data[i][column]))) {
                 arrNumbers.push(0);
@@ -67,7 +67,7 @@ DataTableBatchApi.calculations.max = function (data, deletedItems, column, forma
 DataTableBatchApi.calculations.min = function (data, deletedItems, column, format) {
     var arrNumbers = [];
     var minNumber;
-    for (i = 0; i < data.length; i++) {
+    for (var i = 0; i < data.length; i++) {
 
         if ($.inArray(data[i]["DT_RowId"], deletedItems) === -1) {
             if (isNaN(parseFloat(data[i][column]))) {

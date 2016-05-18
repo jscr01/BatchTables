@@ -1,0 +1,33 @@
+#dtbBatchGridActions{
+    clear: both;
+}
+#dtbDebug{
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 250px;
+    background-color: #808080;
+    color: #ffffff;
+}
+#dtbDebug div{
+    overflow-y: auto;
+    height: 100%;
+    width: 20%;
+    float:left;
+}
+td input, td select{
+    width:100%;
+}
+.fa-check{
+    width: 5px;
+    height: 5px;
+    background-color: aquamarine;
+    display: block;
+}
+.fa-times{
+    width: 5px;
+    height: 5px;
+    background-color: brown;
+    display: block;
+}

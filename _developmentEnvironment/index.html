@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>Data Table Example</title>
+    <link href="_ignore/datatables/css/jquery.dataTables.css" rel="stylesheet" />
+    <link href="css/style.css" rel="stylesheet"/>
+</head>
+<body>
+    <form id="form1" runat="server">
+    <div>
+        <button onclick="_Test.data.addBlank();" type="button">Add Button</button>
+        <table id="example" class="display" cellspacing="0" width="100%">
+				<thead>
+					<tr>
+						<th>Forename</th>
+						<th>Surname</th>
+						<th>Position</th>
+						<th>Office</th>
+						<th>Start date</th>
+						<th>Salary</th>
+                        <th>Can Edit</th>
+					</tr>
+				</thead>
+                <tbody>
+                    <tr data-editform="true">
+                        <td><input type="text" placeholder="Enter name" /></td>
+                        <td><input type="text"  /></td>
+                        <td data-call="data/positions.txt" data-cache="true" >
+                            <select>
+                            </select>
+                        </td>
+                        <td>
+                            <select>
+                                <option>Tokyo</option>
+                                <option>London</option>
+                                <option>San Francisco</option>
+                                <option>New York</option>
+                            </select>
+                        </td>
+                        <td><input type="date" /></td>
+                        <td ><input type="number" /></td>
+                        <td><input type="checkbox" data-trueval='Yes' data-falseval='No'  /></td>
+                    </tr>
+                </tbody>
+                
+                <tfoot data-summary="true">
+                    <tr>
+                        <th>No. People:</th>
+					    <th>=Records()</th>
+					    <th></th>
+					    <th></th>
+					    <th>Total:</th>
+					    <th data-format="true">=Range(5)</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+			</table>
+    </div>
+    </form>
+    <div id="dtbDebug">
+
+    </div>
+</body>
+<script src="_ignore/jquery/jquery.js"></script>
+<script src="_ignore/datatables/js/jquery.dataTables.js"></script>
+<script src="../core/batchTables.js"></script>
+<script src="../core/batchTablesHelpers.js"></script>
+<script src="../core/batchTablesCalculations.js"></script>
+<script src="js/script.js"></script>
+</html>
